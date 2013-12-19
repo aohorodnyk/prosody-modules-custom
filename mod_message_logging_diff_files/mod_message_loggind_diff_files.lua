@@ -24,17 +24,18 @@ local function get_log_path(local_user, remote_user)
 	local username, host = jid_split(local_user);
 	local base = get_host_path(host)..os.date("/%Y-%m-%d").."/"..fsencode(username);
 	if not stat(base) then
-		mkdir(base);
+        os.execute( "mkdir -p "..base );
 	end
 	return base.."/"..fsencode(remote_user)..".msglog";
 end
 
 function open_files_mt(local_user, remote_user)
-	local f, err = io.open(get_log_path(local_user, remote_user), "a+");
-	if not f then
-		module:log("error", "Failed to open message log for writing [%s]: %s", jid, err);
-	end
-	return f;
+    local log_path = get_log_path(local_user, remote_user);
+    local f, err = io.open(log_path, "a+");
+    if not f then
+        module:log("error", "Failed to open message log for writing [%s]: %s", log_path, err);
+    end
+    return f;
 end
 
 -- [user@host_user2@host] = filehandle
@@ -59,14 +60,14 @@ module:hook_global("logging-reloaded", close_open_files);
 local function handle_incoming_message(event)
 	local origin, stanza = event.origin, event.stanza;
 	local message_type = stanza.attr.type;
-	
+
 	if message_type == "error" then return; end
-	
+
 	local from, to = jid_bare(stanza.attr.from), jid_bare(stanza.attr.to);
 	local body = stanza:get_child("body");
 	if not body then return; end
 	body = body:get_text();
-	
+
 	local f = open_file(to, from);
 	if not f then return; end
 	if message_type == "groupchat" then
@@ -81,14 +82,14 @@ end
 local function handle_outgoing_message(event)
 	local origin, stanza = event.origin, event.stanza;
 	local message_type = stanza.attr.type;
-	
+
 	if message_type == "error" or message_type == "groupchat" then return; end
-	
+
 	local from, to = jid_bare(stanza.attr.from), jid_bare(stanza.attr.to);
 	local body = stanza:get_child("body");
 	if not body then return; end
 	body = body:get_text();
-	
+
 	local f = open_file(from, to);
 	if not f then return; end
 	body = body:gsub("\n", "\n    "); -- Indent newlines
@@ -106,11 +107,11 @@ function module.add_host(module)
 
 	module:hook("message/bare", handle_incoming_message, 1);
 	module:hook("message/full", handle_incoming_message, 1);
-	
+
 	module:hook("pre-message/bare", handle_outgoing_message, 1);
 	module:hook("pre-message/full", handle_outgoing_message, 1);
 	module:hook("pre-message/host", handle_outgoing_message, 1);
-	
+
 end
 
 function module.command(arg)
