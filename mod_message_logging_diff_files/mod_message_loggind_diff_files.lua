@@ -40,14 +40,8 @@ function open_files_mt(local_user, remote_user)
 end
 
 -- [user@host_user2@host] = filehandle
-local open_files = {}
-
-function open_file(local_user, remote_user)
-    local key = local_user .. "_" .. remote_user;
-    local f = open_files_mt(local_user, remote_user);
-    open_files[key] = f;
-    return f;
-end
+local open_files = {};
+local open_files_date = os.date("%Y-%m-%d");
 
 function close_open_files()
     module:log("debug", "Closing all open files");
@@ -55,6 +49,20 @@ function close_open_files()
         filehandle:close();
         open_files[jids] = nil;
     end
+end
+
+function open_file(local_user, remote_user)
+    local key = local_user .. "_" .. remote_user;
+    local today = os.date("%Y-%m-%d");
+    if open_files_date ~= today then
+        close_open_files();
+        open_files_date = today;
+    end
+    if not open_files[key] then
+        local f = open_files_mt(local_user, remote_user);
+        open_files[key] = f;
+    end
+    return open_files[key];
 end
 
 module:hook_global("logging-reloaded", close_open_files);
